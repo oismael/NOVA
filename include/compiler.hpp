@@ -73,6 +73,11 @@
 
         #define ACCESS_ONCE(x)      (*static_cast<volatile typeof(x) *>(&(x)))
 
+        #if (COMPILER_VERSION > 700)
+            #define FALLTHROUGH         __attribute__ ((fallthrough));
+        #else
+            #define FALLTHROUGH         /* FALLTHRU */
+        #endif
 #else
         #define COMPILER            "unknown compiler"
         #define COMPILER_VERSION    0
