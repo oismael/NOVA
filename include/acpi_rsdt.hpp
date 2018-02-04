@@ -42,8 +42,8 @@ class Acpi_table_rsdt : public Acpi_table
     public:
         union
         {
-            uint32  rsdt[];
-            uint64  xsdt[];
+            uint32  rsdt[1];
+            uint64  xsdt[1];
         };
 
         INIT
