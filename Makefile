@@ -25,14 +25,16 @@ INSTALL		:= install
 LD		:= ld
 RM		:= rm -f
 SIZE		:= size
+MKDIR		:= mkdir -p
 
-SRC_DIR		:= ../src
-INC_DIR		:= ../include
+SRC_DIR		:= src
+INC_DIR		:= include
+BLD_DIR		?= build-$(ARCH)
 INS_DIR		?= /boot/tftp/nova
-TARGET		:= hypervisor-$(ARCH)
+TARGET		:= $(BLD_DIR)/hypervisor
 
 SRC		:= hypervisor.ld $(sort $(wildcard $(SRC_DIR)/*.S)) $(sort $(wildcard $(SRC_DIR)/*.cpp))
-OBJ		:= $(notdir $(patsubst %.ld,%-$(ARCH).o, $(patsubst %.S,%-$(ARCH).o, $(patsubst %.cpp,%-$(ARCH).o, $(SRC)))))
+OBJ		:= $(patsubst %.ld,$(BLD_DIR)/%.o, $(patsubst %.S,$(BLD_DIR)/%.o, $(patsubst %.cpp,$(BLD_DIR)/%.o, $(notdir $(SRC)))))
 DEP		:= $(patsubst %.o,%.d, $(OBJ))
 
 # Messages
@@ -87,21 +89,26 @@ CFLAGS		:= $(PFLAGS) $(DFLAGS) $(AFLAGS) $(OFLAGS) $(FFLAGS) $(WFLAGS)
 LFLAGS		:= --defsym=GIT_VER=0x$(call gitrv) --gc-sections --warn-common -static -n -T
 
 # Rules
-%-$(ARCH).o:	%.ld $(MAKEFILE_LIST)
+$(BLD_DIR)/%.o:	%.ld $(MAKEFILE_LIST)
 		$(call message,PRE,$@)
 		$(CC) $(SFLAGS) -xc -E -P -MT $@ $< -o $@
 
-%-$(ARCH).o:	%.S $(MAKEFILE_LIST)
+$(BLD_DIR)/%.o:	%.S $(MAKEFILE_LIST)
 		$(call message,ASM,$@)
 		$(CC) $(SFLAGS) -c $< -o $@
 
-%-$(ARCH).o:	%.cpp $(MAKEFILE_LIST)
+$(BLD_DIR)/%.o:	%.cpp $(MAKEFILE_LIST)
 		$(call message,CMP,$@)
 		$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET):	$(OBJ)
 		$(call message,LNK,$@)
 		$(LD) $(LFLAGS) $^ -o $@
+
+$(OBJ):		| $(BLD_DIR)
+
+$(BLD_DIR):
+		@$(MKDIR) $@
 
 .PHONY:		install
 .PHONY:		clean

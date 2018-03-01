@@ -53,11 +53,11 @@ You need the following tools to compile the source code:
 
 You can build a 32-bit microhypervisor binary as follows:
 
-    cd build; make ARCH=x86_32
+    make ARCH=x86_32
 
 You can build a 64-bit microhypervisor binary as follows:
 
-    cd build; make ARCH=x86_64
+    make ARCH=x86_64
 
 
 Booting
