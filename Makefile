@@ -18,7 +18,7 @@
 # GNU General Public License version 2 for more details.
 #
 
-ARCH		?= x86_32
+ARCH		?= x86_64
 CC		:= gcc
 ECHO		:= echo
 INSTALL		:= install
