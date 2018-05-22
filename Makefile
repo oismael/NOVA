@@ -91,19 +91,19 @@ LFLAGS		:= --defsym=GIT_VER=0x$(call gitrv) --gc-sections --warn-common -static 
 # Rules
 $(BLD_DIR)/%.o:	%.ld $(MAKEFILE_LIST)
 		$(call message,PRE,$@)
-		$(CC) $(SFLAGS) -xc -E -P -MT $@ $< -o $@
+		$(CROSS_COMPILE)$(CC) $(SFLAGS) -xc -E -P -MT $@ $< -o $@
 
 $(BLD_DIR)/%.o:	%.S $(MAKEFILE_LIST)
 		$(call message,ASM,$@)
-		$(CC) $(SFLAGS) -c $< -o $@
+		$(CROSS_COMPILE)$(CC) $(SFLAGS) -c $< -o $@
 
 $(BLD_DIR)/%.o:	%.cpp $(MAKEFILE_LIST)
 		$(call message,CMP,$@)
-		$(CC) $(CFLAGS) -c $< -o $@
+		$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET):	$(OBJ)
 		$(call message,LNK,$@)
-		$(LD) $(LFLAGS) $^ -o $@
+		$(CROSS_COMPILE)$(LD) $(LFLAGS) $^ -o $@
 
 $(OBJ):		| $(BLD_DIR)
 

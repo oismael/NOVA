@@ -59,6 +59,10 @@ You can build a 64-bit microhypervisor binary as follows:
 
     make ARCH=x86_64
 
+To use a gcc cross compiler you can set CROSS_COMPILE= with
+the prefix value for gcc as a make argument as follows (for 64-bit):
+
+    make CROSS_COMPILE=x86_64-elf- ARCH=x86_64
 
 Booting
 -------
