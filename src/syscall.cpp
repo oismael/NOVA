@@ -82,11 +82,13 @@ void Ec::send_msg()
 {
     Exc_regs *r = &current->regs;
 
-    Kobject *obj = Space_obj::lookup (current->evt + r->dst_portal).obj();
-    if (EXPECT_FALSE (obj->type() != Kobject::PT))
+    Capability cap = Space_obj::lookup(current->evt + r->dst_portal);
+    // Check for user portal permission (bit 2 on the PT capability)
+    // See sys_create_pt().
+    if (EXPECT_FALSE(!cap.validate(Kobject::PT, 1U << 2)))
         die ("PT not found");
 
-    Pt *pt = static_cast<Pt *>(obj);
+    Pt *pt = static_cast<Pt *>(cap.obj());
     Ec *ec = pt->ec;
 
     if (EXPECT_FALSE (current->cpu != ec->xcpu))
@@ -111,11 +113,12 @@ void Ec::sys_call()
 {
     Sys_call *s = static_cast<Sys_call *>(current->sys_regs());
 
-    Kobject *obj = Space_obj::lookup (s->pt()).obj();
-    if (EXPECT_FALSE (obj->type() != Kobject::PT))
+    Capability cap = Space_obj::lookup(s->pt());
+    // Check for call permission (bit 1 in the PT capability).
+    if (EXPECT_FALSE(!cap.validate(Kobject::PT, 1U << 1)))
         sys_finish<Sys_regs::BAD_CAP>();
 
-    Pt *pt = static_cast<Pt *>(obj);
+    Pt *pt = static_cast<Pt *>(cap.obj());
     Ec *ec = pt->ec;
 
     if (EXPECT_FALSE (current->cpu != ec->xcpu))
@@ -218,7 +221,7 @@ void Ec::sys_create_pd()
     trace (TRACE_SYSCALL, "EC:%p SYS_CREATE PD:%#lx", current, r->sel());
 
     Capability cap = Space_obj::lookup (r->pd());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PD) || !(cap.prm() & 1UL << Kobject::PD)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::PD, 1U << Kobject::PD))) {
         trace (TRACE_ERROR, "%s: Non-PD CAP (%#lx)", __func__, r->pd());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -253,7 +256,7 @@ void Ec::sys_create_ec()
     }
 
     Capability cap = Space_obj::lookup (r->pd());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PD) || !(cap.prm() & 1UL << Kobject::EC)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::PD, 1U << Kobject::EC))) {
         trace (TRACE_ERROR, "%s: Non-PD CAP (%#lx)", __func__, r->pd());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -282,13 +285,13 @@ void Ec::sys_create_sc()
     trace (TRACE_SYSCALL, "EC:%p SYS_CREATE SC:%#lx EC:%#lx P:%#x Q:%#x", current, r->sel(), r->ec(), r->qpd().prio(), r->qpd().quantum());
 
     Capability cap = Space_obj::lookup (r->pd());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PD) || !(cap.prm() & 1UL << Kobject::SC)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::PD, 1U << Kobject::SC))) {
         trace (TRACE_ERROR, "%s: Non-PD CAP (%#lx)", __func__, r->pd());
         sys_finish<Sys_regs::BAD_CAP>();
     }
 
     cap = Space_obj::lookup (r->ec());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::EC) || !(cap.prm() & 1UL << Kobject::SC)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::EC, 1U << Kobject::SC))) {
         trace (TRACE_ERROR, "%s: Non-EC CAP (%#lx)", __func__, r->ec());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -323,13 +326,13 @@ void Ec::sys_create_pt()
     trace (TRACE_SYSCALL, "EC:%p SYS_CREATE PT:%#lx EC:%#lx EIP:%#lx", current, r->sel(), r->ec(), r->eip());
 
     Capability cap = Space_obj::lookup (r->pd());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PD) || !(cap.prm() & 1UL << Kobject::PT)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::PD, 1U << Kobject::PT))) {
         trace (TRACE_ERROR, "%s: Non-PD CAP (%#lx)", __func__, r->pd());
         sys_finish<Sys_regs::BAD_CAP>();
     }
 
     cap = Space_obj::lookup (r->ec());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::EC) || !(cap.prm() & 1UL << Kobject::PT)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::EC, 1U << Kobject::PT))) {
         trace (TRACE_ERROR, "%s: Non-EC CAP (%#lx)", __func__, r->ec());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -340,7 +343,8 @@ void Ec::sys_create_pt()
         sys_finish<Sys_regs::BAD_CAP>();
     }
 
-    Pt *pt = new Pt (Pd::current, r->sel(), ec, r->mtd(), r->eip());
+    // Set bit 2 to allow user portal operations on PT capability.
+    Pt *pt = new Pt (Pd::current, r->sel(), ec, r->mtd(), r->eip(), 0x7);
     if (!Space_obj::insert_root (pt)) {
         trace (TRACE_ERROR, "%s: Non-NULL CAP (%#lx)", __func__, r->sel());
         delete pt;
@@ -357,7 +361,7 @@ void Ec::sys_create_sm()
     trace (TRACE_SYSCALL, "EC:%p SYS_CREATE SM:%#lx CNT:%lu", current, r->sel(), r->cnt());
 
     Capability cap = Space_obj::lookup (r->pd());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PD) || !(cap.prm() & 1UL << Kobject::SM)) {
+    if (EXPECT_FALSE(!cap.validate(Kobject::PD, 1U << Kobject::SM))) {
         trace (TRACE_ERROR, "%s: Non-PD CAP (%#lx)", __func__, r->pd());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -403,7 +407,8 @@ void Ec::sys_ec_ctrl()
     Sys_ec_ctrl *r = static_cast<Sys_ec_ctrl *>(current->sys_regs());
 
     Capability cap = Space_obj::lookup (r->ec());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::EC || !(cap.prm() & 1UL << 0))) {
+    // Bit 0 for CT permission on EC capability
+    if (EXPECT_FALSE(!cap.validate(Kobject::EC, 1U << 0))) {
         trace (TRACE_ERROR, "%s: Bad EC CAP (%#lx)", __func__, r->ec());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -426,7 +431,8 @@ void Ec::sys_sc_ctrl()
     Sys_sc_ctrl *r = static_cast<Sys_sc_ctrl *>(current->sys_regs());
 
     Capability cap = Space_obj::lookup (r->sc());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::SC || !(cap.prm() & 1UL << 0))) {
+    // Bit 0 for CT permission on SC capability
+    if (EXPECT_FALSE(!cap.validate(Kobject::SC, 1U << 0))) {
         trace (TRACE_ERROR, "%s: Bad SC CAP (%#lx)", __func__, r->sc());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -442,7 +448,8 @@ void Ec::sys_pt_ctrl()
     Sys_pt_ctrl *r = static_cast<Sys_pt_ctrl *>(current->sys_regs());
 
     Capability cap = Space_obj::lookup (r->pt());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PT || !(cap.prm() & 1UL << 0))) {
+    // Bit 0 for CT permission on SC capability
+    if (EXPECT_FALSE(!cap.validate(Kobject::PT, 1U << 0))) {
         trace (TRACE_ERROR, "%s: Bad PT CAP (%#lx)", __func__, r->pt());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -459,7 +466,8 @@ void Ec::sys_sm_ctrl()
     Sys_sm_ctrl *r = static_cast<Sys_sm_ctrl *>(current->sys_regs());
 
     Capability cap = Space_obj::lookup (r->sm());
-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::SM || !(cap.prm() & 1UL << r->op()))) {
+    // The operation value matches the bit position on the SM capability.
+    if (EXPECT_FALSE(!cap.validate(Kobject::SM, 1U << r->op()))) {
         trace (TRACE_ERROR, "%s: Bad SM CAP (%#lx)", __func__, r->sm());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -486,8 +494,9 @@ void Ec::sys_assign_pci()
 {
     Sys_assign_pci *r = static_cast<Sys_assign_pci *>(current->sys_regs());
 
-    Kobject *obj = Space_obj::lookup (r->pd()).obj();
-    if (EXPECT_FALSE (obj->type() != Kobject::PD)) {
+    Capability cap = Space_obj::lookup(r->pd());
+    // Check for create_sm permission: bit 4 on PD capability
+    if (EXPECT_FALSE(!cap.validate(Kobject::PD, 1U << 4))) {
         trace (TRACE_ERROR, "%s: Non-PD CAP (%#lx)", __func__, r->pd());
         sys_finish<Sys_regs::BAD_CAP>();
     }
@@ -504,7 +513,7 @@ void Ec::sys_assign_pci()
         sys_finish<Sys_regs::BAD_DEV>();
     }
 
-    dmar->assign (rid, static_cast<Pd *>(obj));
+    dmar->assign (rid, static_cast<Pd *>(cap.obj()));
 
     sys_finish<Sys_regs::SUCCESS>();
 }
@@ -518,13 +527,15 @@ void Ec::sys_assign_gsi()
         sys_finish<Sys_regs::BAD_CPU>();
     }
 
-    Kobject *obj = Space_obj::lookup (r->sm()).obj();
-    if (EXPECT_FALSE (obj->type() != Kobject::SM)) {
+    Capability cap = Space_obj::lookup (r->sm());
+    // check for assign_gsi permission (bit 4 in SM capability).
+    // see Gsi::setup() in gsi.cpp
+    if (EXPECT_FALSE(!cap.validate(Kobject::SM, 1U << 4))) {
         trace (TRACE_ERROR, "%s: Non-SM CAP (%#lx)", __func__, r->sm());
         sys_finish<Sys_regs::BAD_CAP>();
     }
 
-    Sm *sm = static_cast<Sm *>(obj);
+    Sm *sm = static_cast<Sm *>(cap.obj());
 
     if (EXPECT_FALSE (sm->space != static_cast<Space_obj *>(&Pd::kern))) {
         trace (TRACE_ERROR, "%s: Non-GSI SM (%#lx)", __func__, r->sm());

@@ -34,8 +34,8 @@ unsigned    Gsi::irq_table[NUM_IRQ];
 void Gsi::setup()
 {
     for (unsigned gsi = 0; gsi < NUM_GSI; gsi++) {
-
-        Space_obj::insert_root (Gsi::gsi_table[gsi].sm = new Sm (&Pd::kern, NUM_CPU + gsi));
+        // Set bit 4 to allow assign_gsi in the SM capability
+        Space_obj::insert_root (Gsi::gsi_table[gsi].sm = new Sm (&Pd::kern, NUM_CPU + gsi, 0x13));
 
         gsi_table[gsi].vec = static_cast<uint8>(VEC_GSI + gsi);
 

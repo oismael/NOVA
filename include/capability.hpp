@@ -25,12 +25,12 @@
 class Capability
 {
     private:
-        mword val;
+        mword val { 0 };
 
         static mword const perm = 0x1f;
 
     public:
-        Capability() : val (0) {}
+        Capability() = default;
 
         Capability (Kobject *o, mword a) : val (a ? reinterpret_cast<mword>(o) | (a & perm) : 0) {}
 
@@ -39,4 +39,11 @@ class Capability
 
         ALWAYS_INLINE
         inline unsigned prm() const { return val & perm; }
+
+        // @return true if not null of type t and one of the permission set in bits is set.
+        ALWAYS_INLINE
+        bool validate(Kobject::Type t, unsigned bits) const
+        {
+            return obj() && obj()->type() == t && prm() & bits;
+        }
 };

@@ -25,6 +25,19 @@
 
 class Kobject : public Mdb
 {
+    public:
+        // Also define the permission bit for that object in PD capability.
+        enum Type : uint8 {
+            PD = 0,
+            EC,
+            SC,
+            PT,
+            SM,
+        };
+
+        ALWAYS_INLINE
+        inline Type type() const { return Type (objtype); }
+
     private:
         uint8 objtype;
 
@@ -33,19 +46,5 @@ class Kobject : public Mdb
     protected:
         Spinlock lock;
 
-        enum Type
-        {
-            PD,
-            EC,
-            SC,
-            PT,
-            SM,
-            INVALID,
-        };
-
         explicit Kobject (Type t, Space *s, mword b = 0, mword a = 0) : Mdb (s, reinterpret_cast<mword>(this), b, a, free), objtype (t) {}
-
-    public:
-        ALWAYS_INLINE
-        inline Type type() const { return Type (objtype); }
 };

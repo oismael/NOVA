@@ -36,7 +36,7 @@ class Pt : public Kobject
         mword      const ip;
         mword      id;
 
-        Pt (Pd *, mword, Ec *, Mtd, mword);
+        Pt (Pd *, mword, Ec *, Mtd, mword, mword = 0x3);
 
         ALWAYS_INLINE
         inline void set_id (mword i) { id = i; }
